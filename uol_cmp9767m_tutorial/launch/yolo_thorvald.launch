@@ -1,0 +1,32 @@
+<launch>
+	
+	<!-- Launching the gazebo simulation -->
+	<include file="$(find uol_cmp9767m_base)/launch/thorvald-sim.launch" >
+	</include>
+
+	<!-- Launching move_base -->
+	<include file="$(find uol_cmp9767m_tutorial)/launch/move_base.launch" >
+	</include>
+
+	<!-- Launching darknet_ros_thor.launch -->
+	<include file="$(find darknet_ros)/launch/darknet_ros_thor.launch" >
+	</include>	
+
+	<!-- Running node for subscription bbox to Darknet-->
+	<node pkg="darknet_ros" type="subscribe_bbox.py" name="subscribe_bbox" />
+
+
+	<!-- Running node for moving and spraying with thor-->
+	<node pkg="uol_cmp9767m_tutorial" type="move_and_spray_weeds.py" name="moveto_and_spray_weeds" />    
+    
+	<!-- Running node for custom sprayer location-->
+	<node pkg="uol_cmp9767m_tutorial" type="sprayer.py" name="sprayer" />    
+
+    <!-- Loads RViz to display the images with the bounding boxes-->
+	<node name="rviz" pkg="rviz" type="rviz" args="-d $(find uol_cmp9767m_tutorial)/config/yolo_with_navbase.rviz"/>
+
+
+</launch>
+
+
+
