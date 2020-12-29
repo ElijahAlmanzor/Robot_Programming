@@ -1,0 +1,16 @@
+yolo_model:
+
+  config_file:
+    name: yolo-obj.cfg
+  weight_file:
+    name: yolo-obj_final.weights
+  threshold:
+    #Increase the threshold value so only detected objects with high probability are counted
+    value: 0.5
+  detection_classes:
+    names:
+      - cropa
+      - cropb
+      - weed
+      - cropc
+   
