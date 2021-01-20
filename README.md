@@ -6,15 +6,16 @@ The specialisation of this work is *perception* in a *static* environment using 
 
 # 2. Summary of the Solution:
 
-The perception problem is tackled using a [ROS YOLO implementation](https://github.com/leggedrobotics/darknet_ros) of the [Darknet CNN](https://github.com/AlexeyAB/darknet). YOLO was trained (transfer learnt) on 676 [manually labelled](https://github.com/AlexeyAB/Yolo_mark) images taken from the Gazebo simulation for localisation and detection of the 3 types of crops and the weeds. 
+The perception problem is tackled using a [ROS YOLO implementation](https://github.com/leggedrobotics/darknet_ros) of the [Darknet CNN](https://github.com/AlexeyAB/darknet). YOLO was trained on 676 [manually labelled](https://github.com/AlexeyAB/Yolo_mark) images taken from simulations for localisation and detection of the crops and weeds.
 
-Thorvald is moved to the start of the three pairs of crop rows using **Move_base** to position and orientate it with high accuracy. To traverse the crop rows however, a simple proportional controller is used to move Thorvald in a straight direction towards the end of the crop rows. This allows for periodical stopping such that any weeds close to the center of the camera is sprayed with herbicide.
+Thorvald is moved to the start of the three pairs of crop rows using **Move_base** to position it with high accuracy. To traverse the crop rows however, a simple proportional controller is used to move Thorvald in a straight direction towards the end of the crop rows. This allows for periodical stopping such that any weeds close to the center of the camera is sprayed with herbicide.
 
 # 3. Instructions:
 
 ## Running the Solution:
 1. Ensure that [YOLO ROS](https://github.com/leggedrobotics/darknet_ros) package is installed in your workspace - this is responsible for the CNN object detection.
 1. Ensure that the [uol_cmp9767m_tutorial](https://github.com/LCAS/CMP9767M/tree/master/uol_cmp9767m_tutorial) package is also intalled in your workspace.
+1. Ensure that CUDA is installed for your NVIDIA GPU.
 1. Overwrite the above packages using the data files from this repository. 
 1. Ensure python libraries such as opencv, numpy, cvbridge and actionlib are installed.
 
@@ -34,7 +35,7 @@ Also run the command:
     ros-melodic-topic-tools \
     ros-melodic-rqt-tf-tree
 ``` 
-5. Download the transfer learnt/trained weights and custom configuration files (modified from the base YoloV3 trained on the COCO dataset) to allow for prediction of the 3 variants of the crops and the weeds.
+5. Download the trained weights and custom configuration files (transfer learnt from the base YOLOv3 weights trained on the COCO dataset) to allow for prediction of the 3 variants of the crops and the weeds.
 https://drive.google.com/drive/folders/1PWvg936u5Dtwgpnn0b8kiIc85OiSia5k?usp=sharing
 
 
@@ -45,7 +46,12 @@ Place the weights in the directory:
 and the configuration file in the directory:
 > /darknet_ros/yolo_network_config/cfg/yolo-obj.cfg
 
-6. Ensuring to *catkin_make* and *source* the directory first.
+
+
+6. Replace the sensors.xacro in the uol_cmp9767_base/urdf folder with the one provided in this repository to obtain the Thorvald model with the spray nozzle positioned to the side of the camera angled to face the centre of the kinect camera's focal point.
+
+
+7. Ensuring to *catkin_make* and *source* the directory first.
 Then run:
 ```bash 
 roslaunch uol_cmp9767m_tutorial yolo_thorvald.launch 
@@ -53,7 +59,12 @@ roslaunch uol_cmp9767m_tutorial yolo_thorvald.launch
 to run the simulation of Thorvald spraying the weeds on the three pairs of crop rows with varying difficulty.
 The 4 different plants have been classified with labels cropa, cropb, cropc and weed.
 
-7. Replace the sensors.xacro in the uol_cmp9767_base/urdf folder with the one provided in this repository to obtain the Thorvald model with the spray nozzle positioned to the side of the camera angled to face the centre of the kinect camera's locus point.
+## Critical Python Components
+1. subscribe_bbox.py (bbox_display node) is responsible for subscribing to the ROS YOLO predictions.
+2. move_and_spray_weeds.py (move_base_sequence node) is responsible for moving the Thorvald as well as spraying.
+3. sprayer.py (sprayer node) is responsible for applying the spray blobs at the centre of the camera focal point.
+4. take_dataset.py (image_converter node) was used to gather the dataset.
+
 
 ## Step-by-Step Reproduction of the Solution/ Train from Scratch:
 1. The first step is to gather the dataset on which the pre-trained YOLOv3 weights will be trained on. Use the *take_dataset.py* python file to take images from the Kinect camera.
@@ -67,7 +78,7 @@ to move Thorvald manually whilst taking photos.
 
 2. Follow the instructions on https://github.com/AlexeyAB/darknet#how-to-train-to-detect-your-custom-objects to figure out how to create the configuration files needed for the training of the Yolo/Darket and where to download the pre-trained YOLOv3 weights.
 
-3. Once all images have been taken, label using the C++ [Yolo_mark](https://github.com/AlexeyAB/Yolo_mark) program. Follow their instructions on how to use. 
+3. Once all images have been taken, label using the [Yolo_mark](https://github.com/AlexeyAB/Yolo_mark) program. Follow their instructions on how to use. 
 Must make a separate directory for this. 
 Use:
 ```bash
@@ -105,7 +116,7 @@ Also create a new file called *yolo-obj.yaml* and paste this as the content:
       - weed
       - cropc
 ```
-8. Create a copy of the *darknet_ros.launch* file and modify it to:
+8. Create a copy of the *darknet_ros.launch* file and modify lines 13 and 14 to:
 ```  <!-- ROS and network parameter files -->
   <arg name="ros_param_file" default="$(find darknet_ros)/config/ros.yaml"/>
   <arg name="network_param_file" default="$(find darknet_ros)/config/yolo-obj.yaml"/>
@@ -117,8 +128,10 @@ Under the Fake Sprayer origin, change to:
 
 >origin xyz="0.45 -0.2 0.5" rpy="-1.2 0 0"/
 
+10. Modify sprayer.py line 66 to:
+>  request.initial_pose.position.x = 0.45
 
-10. Now to the run the program with the crop and weed detection (making sure each terminal is sourced in the right workplace):
+11. Now to the run the program with the crop and weed detection (making sure each terminal is sourced in the right workplace):
     1. ```roslaunch uol_cmp9767m_base thorvald-sim.launch map_server:=true```
         * This is responsible for launching the main Gazebo simulation as well as MoveBase
     2. ```roslaunch uol_cmp9767m_tutorial move_base.launch```
